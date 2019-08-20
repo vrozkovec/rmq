@@ -2,91 +2,98 @@ package redis.rmq;
 
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Tuple;
 
 public class Consumer {
-    private Nest topic;
-    private Nest subscriber;
-    private String id;
 
-    public Consumer(final JedisPool jedisPool, final String id, final String topic) {
-        this.topic = new Nest("topic:" + topic, jedisPool);
-        this.subscriber = new Nest(this.topic.cat("subscribers").key(), jedisPool);
-        this.id = id;
-    }
+	private static final Logger log = LoggerFactory.getLogger(Consumer.class);
 
-    private void waitForMessages() {
-        try {
-            // TODO el otro metodo podria hacer q no se consuman mensajes por un
-            // tiempo si no llegan, de esta manera solo se esperan 500ms y se
-            // controla que haya mensajes.
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-        }
-    }
+	private Nest topic;
+	private Nest subscriber;
+	private String id;
 
-    public void consume(Callback callback) {
-        while (true) {
-            String message = readUntilEnd();
-            if (message != null)
-                callback.onMessage(message);
-            else
-                waitForMessages();
-        }
-    }
+	public Consumer(final JedisPool jedisPool, final String id, final String topic) {
+		this.topic = new Nest("topic:" + topic, jedisPool);
+		this.subscriber = new Nest(this.topic.cat("subscribers").key(), jedisPool);
+		this.id = id;
+	}
 
-    public String consume() {
-        return readUntilEnd();
-    }
+	private void waitForMessages() {
+		try {
+			// TODO el otro metodo podria hacer q no se consuman mensajes por un
+			// tiempo si no llegan, de esta manera solo se esperan 500ms y se
+			// controla que haya mensajes.
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+		}
+	}
 
-    private String readUntilEnd() {
-        while (unreadMessages() > 0) {
-            String message = read();
-            goNext();
-            if (message != null)
-                return message;
-        }
+	public void consume(Callback callback) {
+		while (true) {
+			String message = readUntilEnd();
+			if (message != null) {
+				callback.onMessage(message);
+				log.info("Remaining messages in queue: {}", unreadMessages());
+			} else
+				waitForMessages();
+		}
+	}
 
-        return null;
-    }
+	public String consume() {
+		return readUntilEnd();
+	}
 
-    private void goNext() {
-        subscriber.zincrby(1, id);
-    }
+	private String readUntilEnd() {
+		while (unreadMessages() > 0) {
+			String message = read();
+			goNext();
+			if (message != null)
+				return message;
+		}
 
-    private int getLastReadMessage() {
-        Double lastMessageRead = subscriber.zscore(id);
-        if (lastMessageRead == null) {
-            Set<Tuple> zrangeWithScores = subscriber.zrangeWithScores(0, 1);
-            if (zrangeWithScores.iterator().hasNext()) {
-                Tuple next = zrangeWithScores.iterator().next();
-                Integer lowest = (int) next.getScore() - 1;
-                subscriber.zadd(lowest, id);
-                return lowest;
-            } else {
-                return 0;
-            }
-        }
-        return lastMessageRead.intValue();
-    }
+		return null;
+	}
 
-    private int getTopicSize() {
-        String stopicSize = topic.get();
-        int topicSize = 0;
-        if (stopicSize != null) {
-            topicSize = Integer.valueOf(stopicSize);
-        }
-        return topicSize;
-    }
+	private void goNext() {
+		subscriber.zincrby(1, id);
+	}
 
-    public String read() {
-        int lastReadMessage = getLastReadMessage();
-        return topic.cat("message").cat(lastReadMessage + 1).get();
-    }
+	private int getLastReadMessage() {
+		Double lastMessageRead = subscriber.zscore(id);
+		if (lastMessageRead == null) {
+			Set<Tuple> zrangeWithScores = subscriber.zrangeWithScores(0, 1);
+			if (zrangeWithScores.iterator().hasNext()) {
+				Tuple next = zrangeWithScores.iterator().next();
+				Integer lowest = (int) next.getScore() - 1;
+				subscriber.zadd(lowest, id);
+				return lowest;
+			} else {
+				return 0;
+			}
+		}
+		return lastMessageRead.intValue();
+	}
 
-    public int unreadMessages() {
-        return getTopicSize() - getLastReadMessage();
-    }
+	private int getTopicSize() {
+		String stopicSize = topic.get();
+		int topicSize = 0;
+		if (stopicSize != null) {
+			topicSize = Integer.valueOf(stopicSize);
+		}
+		return topicSize;
+	}
+
+	public String read() {
+		int lastReadMessage = getLastReadMessage();
+		return topic.cat("message").cat(lastReadMessage + 1).get();
+	}
+
+	public int unreadMessages() {
+		return getTopicSize() - getLastReadMessage();
+	}
 }
