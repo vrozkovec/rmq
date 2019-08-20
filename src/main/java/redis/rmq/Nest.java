@@ -5,18 +5,19 @@ import java.util.Map;
 import java.util.Set;
 
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.TransactionBlock;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Transaction;
 import redis.clients.jedis.Tuple;
 
 public class Nest {
     private static final String COLON = ":";
     private StringBuilder sb;
     private String key;
-    private Jedis jedis;
+    private JedisPool jedisPool;
 
-    public Nest(String key, Jedis jedis) {
+    public Nest(String key, JedisPool jedisPool) {
         this.key = key;
-        this.jedis = jedis;
+        this.jedisPool = jedisPool;
     }
 
     public String key() {
@@ -71,12 +72,13 @@ public class Nest {
         return incr;
     }
 
-    public List<Object> multi(TransactionBlock transaction) {
-        Jedis jedis = getResource();
-        List<Object> multi = jedis.multi(transaction);
-        returnResource(jedis);
-        return multi;
-    }
+//    public List<Object> multi(Transaction transaction) {
+//        Jedis jedis = getResource();
+//        transaction.
+//        List<Object> multi = jedis.multi( );
+//        returnResource(jedis);
+//        return multi;
+//    }
 
     public Long del() {
         Jedis jedis = getResource();
@@ -253,10 +255,11 @@ public class Nest {
     }
 
     private void returnResource(final Jedis jedis) {
+    	jedis.close();
     }
 
     private Jedis getResource() {
-        return jedis;
+        return jedisPool.getResource();
     }
 
     public String watch() {

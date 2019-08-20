@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 import redis.rmq.Callback;
 import redis.rmq.Consumer;
 import redis.rmq.Producer;
@@ -21,8 +22,8 @@ public class ProducerTest extends Assert {
 
     @Test
     public void publishAndConsume() {
-        Producer p = new Producer(new Jedis("localhost"), "foo");
-        Consumer c = new Consumer(new Jedis("localhost"), "a subscriber", "foo");
+        Producer p = new Producer(new JedisPool("localhost"), "foo");
+        Consumer c = new Consumer(new JedisPool("localhost"), "a subscriber", "foo");
 
         p.publish("hello world!");
         assertEquals("hello world!", c.consume());
@@ -30,8 +31,8 @@ public class ProducerTest extends Assert {
 
     @Test
     public void publishAndRead() {
-        Producer p = new Producer(new Jedis("localhost"), "foo");
-        Consumer c = new Consumer(new Jedis("localhost"), "a subscriber", "foo");
+        Producer p = new Producer(new JedisPool("localhost"), "foo");
+        Consumer c = new Consumer(new JedisPool("localhost"), "a subscriber", "foo");
 
         p.publish("hello world!");
         assertEquals("hello world!", c.read());
@@ -40,8 +41,8 @@ public class ProducerTest extends Assert {
 
     @Test
     public void unreadMessages() {
-        Producer p = new Producer(new Jedis("localhost"), "foo");
-        Consumer c = new Consumer(new Jedis("localhost"), "a subscriber", "foo");
+        Producer p = new Producer(new JedisPool("localhost"), "foo");
+        Consumer c = new Consumer(new JedisPool("localhost"), "a subscriber", "foo");
 
         assertEquals(0, c.unreadMessages());
         p.publish("hello world!");
@@ -54,13 +55,13 @@ public class ProducerTest extends Assert {
 
     @Test
     public void raceConditionsWhenPublishing() throws InterruptedException {
-        Producer slow = new SlowProducer(new Jedis("localhost"), "foo");
-        Consumer c = new Consumer(new Jedis("localhost"), "a subscriber", "foo");
+        Producer slow = new SlowProducer(new JedisPool("localhost"), "foo");
+        Consumer c = new Consumer(new JedisPool("localhost"), "a subscriber", "foo");
 
         slow.publish("a");
         Thread t = new Thread(new Runnable() {
             public void run() {
-                Producer fast = new Producer(new Jedis("localhost"), "foo");
+                Producer fast = new Producer(new JedisPool("localhost"), "foo");
                 fast.publish("b");
             }
         });
@@ -73,8 +74,8 @@ public class ProducerTest extends Assert {
 
     @Test
     public void eraseOldMessages() {
-        Producer p = new Producer(new Jedis("localhost"), "foo");
-        Consumer c = new Consumer(new Jedis("localhost"), "a subscriber", "foo");
+        Producer p = new Producer(new JedisPool("localhost"), "foo");
+        Consumer c = new Consumer(new JedisPool("localhost"), "a subscriber", "foo");
 
         p.publish("a");
         p.publish("b");
@@ -83,7 +84,7 @@ public class ProducerTest extends Assert {
 
         p.clean();
 
-        Consumer nc = new Consumer(new Jedis("localhost"), "new subscriber",
+        Consumer nc = new Consumer(new JedisPool("localhost"), "new subscriber",
                 "foo");
 
         assertEquals("b", c.consume());
@@ -95,11 +96,11 @@ public class ProducerTest extends Assert {
     class SlowProducer extends Producer {
         private long sleep;
 
-        public SlowProducer(Jedis jedis, String topic) {
+        public SlowProducer(JedisPool jedis, String topic) {
             this(jedis, topic, 500L);
         }
 
-        public SlowProducer(Jedis jedis, String topic, long sleep) {
+        public SlowProducer(JedisPool jedis, String topic, long sleep) {
             super(jedis, topic);
             this.sleep = sleep;
         }
@@ -114,11 +115,11 @@ public class ProducerTest extends Assert {
     class SlowConsumer extends Consumer {
         private long sleep;
 
-        public SlowConsumer(Jedis jedis, String id, String topic) {
+        public SlowConsumer(JedisPool jedis, String id, String topic) {
             this(jedis, id, topic, 500L);
         }
 
-        public SlowConsumer(Jedis jedis, String id, String topic, long sleep) {
+        public SlowConsumer(JedisPool jedis, String id, String topic, long sleep) {
             super(jedis, id, topic);
             this.sleep = sleep;
         }
@@ -138,9 +139,9 @@ public class ProducerTest extends Assert {
 
     @Test
     public void expiredMessages() throws InterruptedException {
-        Consumer c = new SlowConsumer(new Jedis("localhost"), "a consumer",
+        Consumer c = new SlowConsumer(new JedisPool("localhost"), "a consumer",
                 "foo", 2000L);
-        Producer p = new Producer(new Jedis("localhost"), "foo");
+        Producer p = new Producer(new JedisPool("localhost"), "foo");
         p.publish("un mensaje", 1);
         assertNull(c.consume());
     }
@@ -154,9 +155,9 @@ public class ProducerTest extends Assert {
 
     @Test
     public void firstMessageExpired() throws InterruptedException {
-        Consumer c = new SlowConsumer(new Jedis("localhost"), "a consumer",
+        Consumer c = new SlowConsumer(new JedisPool("localhost"), "a consumer",
                 "foo", 2000L);
-        Producer p = new Producer(new Jedis("localhost"), "foo");
+        Producer p = new Producer(new JedisPool("localhost"), "foo");
         p.publish("1", 1);
         p.publish("2", 0);
 

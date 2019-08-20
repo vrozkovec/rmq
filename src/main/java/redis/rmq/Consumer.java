@@ -3,6 +3,7 @@ package redis.rmq;
 import java.util.Set;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Tuple;
 
 public class Consumer {
@@ -10,9 +11,9 @@ public class Consumer {
     private Nest subscriber;
     private String id;
 
-    public Consumer(final Jedis jedis, final String id, final String topic) {
-        this.topic = new Nest("topic:" + topic, jedis);
-        this.subscriber = new Nest(this.topic.cat("subscribers").key(), jedis);
+    public Consumer(final JedisPool jedisPool, final String id, final String topic) {
+        this.topic = new Nest("topic:" + topic, jedisPool);
+        this.subscriber = new Nest(this.topic.cat("subscribers").key(), jedisPool);
         this.id = id;
     }
 
