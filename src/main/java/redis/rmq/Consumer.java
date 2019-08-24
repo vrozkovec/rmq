@@ -5,7 +5,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Tuple;
 
@@ -35,6 +34,12 @@ public class Consumer {
 
 	public void consume(Callback callback) {
 		while (true) {
+			//allow for safe exit
+			if(callback.isShutdownRequested())
+			{
+				log.info("Shutdown requested. Remaining messages in queue: {}", unreadMessages());
+				break;
+			}
 			String message = readUntilEnd();
 			if (message != null) {
 				callback.onMessage(message);
