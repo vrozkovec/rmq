@@ -16,10 +16,13 @@ public class Consumer {
 	private Nest subscriber;
 	private String id;
 
+	private String topicName;
+
 	public Consumer(final JedisPool jedisPool, final String id, final String topic) {
 		this.topic = new Nest("topic:" + topic, jedisPool);
 		this.subscriber = new Nest(this.topic.cat("subscribers").key(), jedisPool);
 		this.id = id;
+		topicName = topic;
 	}
 
 	private void waitForMessages() {
@@ -34,16 +37,15 @@ public class Consumer {
 
 	public void consume(Callback callback) {
 		while (true) {
-			//allow for safe exit
-			if(callback.isShutdownRequested())
-			{
-				log.info("Shutdown requested. Remaining messages in queue: {}", unreadMessages());
+			// allow for safe exit
+			if (callback.isShutdownRequested()) {
+				log.info("Shutdown requested. Stopping queue {}", topicName);
 				break;
 			}
 			String message = readUntilEnd();
 			if (message != null) {
 				callback.onMessage(message);
-				log.info("Remaining messages in queue: {}", unreadMessages());
+				log.info("Remaining messages in queue {}: {}", topicName, unreadMessages());
 			} else
 				waitForMessages();
 		}
