@@ -19,10 +19,6 @@ public class Producer {
 		this.subscriber = new Nest(this.topic.cat("subscribers").key(), jedisPool);
 	}
 
-	public void publish(final String message) {
-		publish(message, 0);
-	}
-
 	protected Integer getNextMessageId() {
 		final String slastMessageId = topic.get();
 		Integer lastMessageId = 0;
@@ -41,7 +37,15 @@ public class Producer {
 	}
 
 	/**
+	 * Publish message without expiration
 	 * 
+	 * @param message
+	 */
+	public void publish(final String message) {
+		publish(message, 0);
+	}
+
+	/**
 	 * @param message menssage
 	 * @param seconds expiry time
 	 */
